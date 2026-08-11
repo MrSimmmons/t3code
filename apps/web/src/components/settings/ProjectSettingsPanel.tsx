@@ -40,6 +40,7 @@ import { isElectron } from "../../env";
 import {
   useClientSettings,
   useUpdateClientSettings,
+  useUpdateEnvironmentSettings,
   usePrimarySettings,
 } from "../../hooks/useSettings";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
@@ -84,6 +85,7 @@ import {
 import { cn } from "../../lib/utils";
 import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "../../workspaceTitlebar";
 import { Button } from "../ui/button";
+import { DraftInput } from "../ui/draft-input";
 import { Input } from "../ui/input";
 import {
   Menu,
@@ -471,6 +473,34 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
   );
   const keybindings = selectedServerConfig?.keybindings ?? DEFAULT_RESOLVED_KEYBINDINGS;
   const scripts = selectedCheckout.scripts;
+
+  // ----- worktree location (per checkout, keyed by its workspace root) -----
+  const updateSelectedCheckoutSettings = useUpdateEnvironmentSettings(
+    selectedCheckout.environmentId,
+  );
+  const worktreeDirectoryOverrides = selectedServerConfig?.settings?.worktreeDirectoryOverrides;
+  const configuredWorktreeDirectory =
+    worktreeDirectoryOverrides?.[selectedCheckout.workspaceRoot] ?? "";
+  const [worktreeDirectoryError, setWorktreeDirectoryError] = useState<string | null>(null);
+  const commitWorktreeDirectory = useCallback(
+    (next: string) => {
+      const trimmed = next.trim();
+      // Rejected here as well as server-side so a typo can't be stored and
+      // then fail every new thread one at a time.
+      if (trimmed !== "" && !/^([/~]|[A-Za-z]:[\\/])/.test(trimmed)) {
+        setWorktreeDirectoryError('Must be an absolute path, or start with "~".');
+        return;
+      }
+      setWorktreeDirectoryError(null);
+      const { [selectedCheckout.workspaceRoot]: _cleared, ...others } =
+        worktreeDirectoryOverrides ?? {};
+      updateSelectedCheckoutSettings({
+        worktreeDirectoryOverrides:
+          trimmed === "" ? others : { ...others, [selectedCheckout.workspaceRoot]: trimmed },
+      });
+    },
+    [selectedCheckout.workspaceRoot, updateSelectedCheckoutSettings, worktreeDirectoryOverrides],
+  );
   const [editorRequest, setEditorRequest] = useState<ProjectScriptEditorRequest | null>(null);
   // Script writes replace the whole array, so two overlapping writes computed
   // from the same snapshot would drop each other's changes. One at a time.
@@ -999,6 +1029,33 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                   </SelectItem>
                 </SelectPopup>
               </Select>
+            }
+          />
+          <SettingsRow
+            title="Worktree location"
+            description='Where new worktrees for this checkout are created. Leave empty for the default location inside T3&apos;s home directory. Must be an absolute path; "~" is allowed. Existing worktrees are never moved.'
+            status={
+              worktreeDirectoryError ? (
+                <span className="text-destructive">{worktreeDirectoryError}</span>
+              ) : null
+            }
+            resetAction={
+              configuredWorktreeDirectory !== "" ? (
+                <SettingResetButton
+                  label="worktree location"
+                  onClick={() => commitWorktreeDirectory("")}
+                />
+              ) : null
+            }
+            control={
+              <DraftInput
+                className="w-full sm:w-72"
+                value={configuredWorktreeDirectory}
+                onCommit={commitWorktreeDirectory}
+                placeholder="Default (T3 home)"
+                spellCheck={false}
+                aria-label={`Worktree location for ${selectedCheckoutLabel}`}
+              />
             }
           />
           {group.memberProjects.length > 1 ? (
