@@ -14,7 +14,7 @@ import type { ServerSettings } from "@t3tools/contracts";
 
 import { expandHomePath } from "../pathExpansion.ts";
 
-/** Git refuses slashes in a worktree directory name; mirror the default layout. */
+/** Flatten to one directory segment, matching VS Code and the default layout. */
 export function sanitizeWorktreeBranch(branch: string): string {
   return branch.replace(/\//g, "-");
 }

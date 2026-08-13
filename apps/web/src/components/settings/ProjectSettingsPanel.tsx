@@ -111,13 +111,7 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { ProjectFaviconPickerDialog } from "./ProjectFaviconPickerDialog";
-
-/**
- * POSIX absolute, Windows drive-rooted, Windows UNC share, or home-relative.
- * The tilde branch mirrors the server's `expandHomePath`, which expands `~`,
- * `~/…` and `~\…` but not `~user`.
- */
-const ABSOLUTE_WORKTREE_LOCATION = /^(?:\/|\\\\|[A-Za-z]:[\\/]|~(?:[\\/]|$))/;
+import { isAbsoluteWorktreeLocation } from "./ProjectSettingsPanel.logic";
 
 export const PROJECT_GROUPING_MODE_LABELS: Record<SidebarProjectGroupingMode, string> = {
   repository: "Group by repository",
@@ -491,22 +485,31 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
   const [worktreeDirectoryError, setWorktreeDirectoryError] = useState<string | null>(null);
   const commitWorktreeDirectory = useCallback(
     (next: string) => {
+      // The patch replaces the whole map, so writing before the config loads
+      // would drop every other project's override.
+      if (!selectedServerConfig) return;
       const trimmed = next.trim();
+      const os = selectedServerConfig.environment.platform.os;
       // Rejected here as well as server-side so a typo can't be stored and
-      // then fail every new thread one at a time.
-      if (trimmed !== "" && !ABSOLUTE_WORKTREE_LOCATION.test(trimmed)) {
-        setWorktreeDirectoryError('Must be an absolute path, or start with "~/".');
+      // then fail every new thread one at a time. An unknown host OS can't be
+      // checked without guessing, so the server has the final say.
+      if (trimmed !== "" && os !== "unknown" && !isAbsoluteWorktreeLocation(trimmed, os)) {
+        setWorktreeDirectoryError(
+          os === "windows"
+            ? 'Must be an absolute path (e.g. "C:\\worktrees"), or start with "~".'
+            : 'Must be an absolute path starting with "/", or with "~".',
+        );
         return;
       }
       setWorktreeDirectoryError(null);
       const { [selectedCheckout.workspaceRoot]: _cleared, ...others } =
-        worktreeDirectoryOverrides ?? {};
+        selectedServerConfig.settings.worktreeDirectoryOverrides;
       updateSelectedCheckoutSettings({
         worktreeDirectoryOverrides:
           trimmed === "" ? others : { ...others, [selectedCheckout.workspaceRoot]: trimmed },
       });
     },
-    [selectedCheckout.workspaceRoot, updateSelectedCheckoutSettings, worktreeDirectoryOverrides],
+    [selectedCheckout.workspaceRoot, selectedServerConfig, updateSelectedCheckoutSettings],
   );
   useEffect(() => {
     setWorktreeDirectoryError(null);
@@ -1050,7 +1053,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
               ) : null
             }
             resetAction={
-              configuredWorktreeDirectory !== "" ? (
+              selectedServerConfig && configuredWorktreeDirectory !== "" ? (
                 <SettingResetButton
                   label="worktree location"
                   onClick={() => commitWorktreeDirectory("")}
@@ -1062,6 +1065,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                 className="w-full sm:w-72"
                 value={configuredWorktreeDirectory}
                 onCommit={commitWorktreeDirectory}
+                disabled={!selectedServerConfig}
                 placeholder="Default (T3 home)"
                 spellCheck={false}
                 aria-label={`Worktree location for ${selectedCheckoutLabel}`}
