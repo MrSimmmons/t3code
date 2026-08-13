@@ -112,6 +112,13 @@ import {
 } from "./settingsLayout";
 import { ProjectFaviconPickerDialog } from "./ProjectFaviconPickerDialog";
 
+/**
+ * POSIX absolute, Windows drive-rooted, Windows UNC share, or home-relative.
+ * The tilde branch mirrors the server's `expandHomePath`, which expands `~`,
+ * `~/…` and `~\…` but not `~user`.
+ */
+const ABSOLUTE_WORKTREE_LOCATION = /^(?:\/|\\\\|[A-Za-z]:[\\/]|~(?:[\\/]|$))/;
+
 export const PROJECT_GROUPING_MODE_LABELS: Record<SidebarProjectGroupingMode, string> = {
   repository: "Group by repository",
   repository_path: "Group by repository path",
@@ -487,8 +494,8 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
       const trimmed = next.trim();
       // Rejected here as well as server-side so a typo can't be stored and
       // then fail every new thread one at a time.
-      if (trimmed !== "" && !/^([/~]|[A-Za-z]:[\\/])/.test(trimmed)) {
-        setWorktreeDirectoryError('Must be an absolute path, or start with "~".');
+      if (trimmed !== "" && !ABSOLUTE_WORKTREE_LOCATION.test(trimmed)) {
+        setWorktreeDirectoryError('Must be an absolute path, or start with "~/".');
         return;
       }
       setWorktreeDirectoryError(null);
@@ -501,6 +508,9 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
     },
     [selectedCheckout.workspaceRoot, updateSelectedCheckoutSettings, worktreeDirectoryOverrides],
   );
+  useEffect(() => {
+    setWorktreeDirectoryError(null);
+  }, [selectedCheckout.workspaceRoot]);
   const [editorRequest, setEditorRequest] = useState<ProjectScriptEditorRequest | null>(null);
   // Script writes replace the whole array, so two overlapping writes computed
   // from the same snapshot would drop each other's changes. One at a time.
@@ -1033,7 +1043,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
           />
           <SettingsRow
             title="Worktree location"
-            description='Where new worktrees for this checkout are created. Leave empty for the default location inside T3&apos;s home directory. Must be an absolute path; "~" is allowed. Existing worktrees are never moved.'
+            description={`Where new worktrees for this checkout are created. Leave empty for the default location inside T3's home directory. Must be an absolute path; "~" is allowed. Existing worktrees are never moved.`}
             status={
               worktreeDirectoryError ? (
                 <span className="text-destructive">{worktreeDirectoryError}</span>
