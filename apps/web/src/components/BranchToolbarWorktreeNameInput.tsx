@@ -85,12 +85,13 @@ export function BranchToolbarWorktreeNameInput({
       spellCheck={false}
       autoComplete="off"
       aria-label="Branch name for the new worktree"
+      data-composer-context-control
       aria-invalid={conflict || undefined}
       title={conflict ? `Branch "${normalizedValue}" already exists.` : undefined}
       className={cn(
-        "h-7 min-w-0 flex-1 max-w-44 rounded-md bg-transparent px-2 font-mono text-xs outline-none transition-colors sm:h-6",
+        "h-7 w-44 min-w-0 shrink rounded-md bg-transparent px-2 font-mono text-xs outline-none transition-colors sm:h-6",
         "placeholder:font-sans placeholder:text-muted-foreground/50",
-        "hover:bg-muted/40 focus:bg-muted/40",
+        "hover:bg-muted/40 focus:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring",
         conflict ? "text-destructive" : "text-muted-foreground/70 focus:text-foreground/80",
       )}
     />

@@ -131,7 +131,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
 
   if (isLocked) {
     return (
-      <span className="inline-flex h-7 min-w-0 max-w-[48%] flex-1 items-center justify-start gap-1 rounded-md border border-transparent px-[calc(--spacing(2)-1px)] text-sm font-medium text-muted-foreground/70 sm:h-6 md:hidden">
+      <span className="inline-flex h-7 min-w-0 max-w-[48%] shrink items-center justify-start gap-1 rounded-md border border-transparent px-[calc(--spacing(2)-1px)] text-sm font-medium text-muted-foreground/70 sm:h-6 md:hidden">
         {triggerContent}
       </span>
     );
@@ -141,7 +141,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
     <Menu>
       <MenuTrigger
         render={<Button variant="ghost" size="xs" />}
-        className="min-w-0 max-w-[48%] flex-1 justify-start text-muted-foreground/70 hover:text-foreground/80 md:hidden"
+        className="min-w-0 max-w-[48%] shrink justify-start text-muted-foreground/70 hover:text-foreground/80 md:hidden"
       >
         {triggerContent}
         <ChevronDownIcon className="size-3 shrink-0 opacity-50" />
@@ -562,7 +562,7 @@ export const BranchToolbar = memo(function BranchToolbar({
 
       {showGitControls ? (
         <BranchToolbarBranchSelector
-          className="min-w-0 flex-1 justify-end md:ml-auto md:flex-none"
+          className="min-w-0 flex-auto justify-end md:ml-auto md:flex-none"
           environmentId={environmentId}
           threadId={threadId}
           {...(draftId ? { draftId } : {})}
