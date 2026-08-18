@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import { type EnvironmentId, GIT_LIST_BRANCHES_MAX_LIMIT } from "@t3tools/contracts";
 import { normalizeWorktreeBranchName, sanitizeWorktreeBranchNameInput } from "@t3tools/shared/git";
 import { useDeferredValue, useEffect, useRef } from "react";
 
@@ -48,7 +48,11 @@ export function BranchToolbarWorktreeNameInput({
           input: {
             cwd,
             query: deferredNormalizedValue,
-            limit: 20,
+            // The server matches the query as a substring and pages the
+            // result, so an exact match can fall off a short page. Locals
+            // only (remotes can't collide) at the max page size.
+            refKind: "local",
+            limit: GIT_LIST_BRANCHES_MAX_LIMIT,
           },
         }),
   );
