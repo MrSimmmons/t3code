@@ -3,6 +3,7 @@ import { normalizeWorktreeBranchName, sanitizeWorktreeBranchNameInput } from "@t
 import { useDeferredValue, useEffect, useRef } from "react";
 
 import { cn } from "../lib/utils";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useEnvironmentQuery } from "../state/query";
 import { vcsEnvironment } from "../state/vcs";
 
@@ -65,9 +66,15 @@ export function BranchToolbarWorktreeNameInput({
     deferredNormalizedValue === normalizedValue &&
     (conflictRefsQuery.data !== null || conflictRefsQuery.error !== null);
   const conflict = checked && (conflictRefsQuery.data?.totalCount ?? 0) > 0;
-  // Named for the message: the collision may be a parent or child of the
-  // typed name rather than the name itself.
+  // The collision may be a parent or child of the typed name rather than the
+  // name itself, so the message names the ref actually in the way.
   const conflictingRef = conflict ? (conflictRefsQuery.data?.refs[0]?.name ?? null) : null;
+  const conflictMessage =
+    conflictingRef === null
+      ? null
+      : conflictingRef === normalizedValue
+        ? `Branch "${conflictingRef}" already exists.`
+        : `Branch "${conflictingRef}" already exists, so "${normalizedValue}" can't be created.`;
   const state = checked ? (conflict ? "conflict" : "available") : "checking";
 
   const onStatusChangeRef = useRef(onStatusChange);
@@ -79,30 +86,32 @@ export function BranchToolbarWorktreeNameInput({
   // "Current checkout"), or it would block sends it no longer applies to.
   useEffect(() => () => onStatusChangeRef.current?.(null), []);
 
+  // The tooltip stays mounted and merely disabled so a collision appearing
+  // mid-keystroke can't remount the input out from under the caret.
   return (
-    <input
-      type="text"
-      value={value}
-      onChange={(event) => onValueChange(sanitizeWorktreeBranchNameInput(event.target.value))}
-      placeholder="custom branch name"
-      spellCheck={false}
-      autoComplete="off"
-      aria-label="Branch name for the new worktree"
-      data-composer-context-control
-      aria-invalid={conflict || undefined}
-      title={
-        !conflict || conflictingRef === null
-          ? undefined
-          : conflictingRef === normalizedValue
-            ? `Branch "${conflictingRef}" already exists.`
-            : `Branch "${conflictingRef}" already exists, so "${normalizedValue}" can't be created.`
-      }
-      className={cn(
-        "h-7 w-44 min-w-0 shrink rounded-md bg-transparent px-2 font-mono text-xs outline-none transition-colors sm:h-6",
-        "placeholder:font-sans placeholder:text-muted-foreground/50",
-        "hover:bg-muted/40 focus:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring",
-        conflict ? "text-destructive" : "text-muted-foreground/70 focus:text-foreground/80",
-      )}
-    />
+    <Tooltip disabled={conflictMessage === null}>
+      <TooltipTrigger
+        render={
+          <input
+            type="text"
+            value={value}
+            onChange={(event) => onValueChange(sanitizeWorktreeBranchNameInput(event.target.value))}
+            placeholder="custom branch name"
+            spellCheck={false}
+            autoComplete="off"
+            aria-label="Branch name for the new worktree"
+            data-composer-context-control
+            aria-invalid={conflict || undefined}
+            className={cn(
+              "h-7 w-44 min-w-0 shrink rounded-md bg-transparent px-2 font-mono text-xs outline-none transition-colors sm:h-6",
+              "placeholder:font-sans placeholder:text-muted-foreground/50",
+              "hover:bg-muted/40 focus:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring",
+              conflict ? "text-destructive" : "text-muted-foreground/70 focus:text-foreground/80",
+            )}
+          />
+        }
+      />
+      <TooltipPopup side="top">{conflictMessage}</TooltipPopup>
+    </Tooltip>
   );
 }
