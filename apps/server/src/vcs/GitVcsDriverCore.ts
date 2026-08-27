@@ -203,12 +203,25 @@ function parsePorcelainPath(line: string): string | null {
   return filePath.length > 0 ? filePath : null;
 }
 
+/**
+ * Refs git refuses to let `name` coexist with: the same ref, one nested under
+ * it, or one it would nest under (`feat` and `feat/foo` collide either way).
+ */
+function refCollidesWithName(refName: string, name: string): boolean {
+  return refName === name || refName.startsWith(`${name}/`) || name.startsWith(`${refName}/`);
+}
+
 function filterBranchesForListQuery(
   refs: ReadonlyArray<VcsRef>,
   query?: string,
+  queryMode?: "substring" | "collision",
 ): ReadonlyArray<VcsRef> {
   if (!query) {
     return refs;
+  }
+
+  if (queryMode === "collision") {
+    return refs.filter((refName) => refCollidesWithName(refName.name, query));
   }
 
   const normalizedQuery = query.toLowerCase();
@@ -2733,7 +2746,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
             ? allBranches.filter((ref) => ref.isRemote)
             : allBranches;
       const refs = paginateBranches({
-        refs: filterBranchesForListQuery(branchesForKind, input.query),
+        refs: filterBranchesForListQuery(branchesForKind, input.query, input.queryMode),
         cursor: input.cursor,
         limit: input.limit,
       });

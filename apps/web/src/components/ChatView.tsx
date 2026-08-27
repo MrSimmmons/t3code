@@ -5065,7 +5065,7 @@ function ChatViewContent(props: ChatViewProps) {
       if (worktreeBranchNameStatus.state === "conflict") {
         setThreadError(
           threadIdForSend,
-          `Branch "${draftWorktreeBranchName}" already exists. Pick a different worktree branch name.`,
+          `Branch "${draftWorktreeBranchName}" collides with an existing branch. Pick a different worktree branch name.`,
         );
         return;
       }

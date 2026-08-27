@@ -1261,6 +1261,28 @@ it.layer(TestLayer)("GitVcsDriver core integration", (it) => {
       }),
     );
 
+    it.effect("matches only colliding refs in collision query mode", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTmpDir();
+        yield* initRepoWithCommit(cwd);
+        yield* git(cwd, ["branch", "feature/alpha"]);
+        yield* git(cwd, ["branch", "unrelated-feature"]);
+        const driver = yield* GitVcsDriver.GitVcsDriver;
+        const collisions = (query: string) =>
+          driver
+            .listRefs({ cwd, query, queryMode: "collision", refKind: "local" })
+            .pipe(Effect.map((result) => result.refs.map((ref) => ref.name).toSorted()));
+
+        // Exact, plus both halves of a directory/file collision.
+        assert.deepStrictEqual(yield* collisions("feature/alpha"), ["feature/alpha"]);
+        assert.deepStrictEqual(yield* collisions("feature"), ["feature/alpha"]);
+        assert.deepStrictEqual(yield* collisions("feature/alpha/beta"), ["feature/alpha"]);
+        // A substring match is not a collision.
+        assert.deepStrictEqual(yield* collisions("feat"), []);
+        assert.deepStrictEqual(yield* collisions("alpha"), []);
+      }),
+    );
+
     it.effect("marks the origin default ref as default when no local copy exists", () =>
       Effect.gen(function* () {
         const cwd = yield* makeTmpDir();

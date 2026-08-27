@@ -1,4 +1,4 @@
-import { type EnvironmentId, GIT_LIST_BRANCHES_MAX_LIMIT } from "@t3tools/contracts";
+import type { EnvironmentId } from "@t3tools/contracts";
 import { normalizeWorktreeBranchName, sanitizeWorktreeBranchNameInput } from "@t3tools/shared/git";
 import { useDeferredValue, useEffect, useRef } from "react";
 
@@ -29,7 +29,7 @@ interface BranchToolbarWorktreeNameInputProps {
 /**
  * Low-profile input naming the branch the next worktree is created with.
  * Left empty, the branch name is generated from the first message instead.
- * Marks itself invalid when a local branch with that name already exists.
+ * Marks itself invalid when the name collides with an existing local branch.
  */
 export function BranchToolbarWorktreeNameInput({
   environmentId,
@@ -48,11 +48,12 @@ export function BranchToolbarWorktreeNameInput({
           input: {
             cwd,
             query: deferredNormalizedValue,
-            // The server matches the query as a substring and pages the
-            // result, so an exact match can fall off a short page. Locals
-            // only (remotes can't collide) at the max page size.
+            // `collision` makes the server answer over every local ref, so
+            // `totalCount` is the whole answer and paging can't hide a match.
+            // Locals only — a remote ref can't block worktree creation.
+            queryMode: "collision",
             refKind: "local",
-            limit: GIT_LIST_BRANCHES_MAX_LIMIT,
+            limit: 1,
           },
         }),
   );
@@ -63,12 +64,10 @@ export function BranchToolbarWorktreeNameInput({
   const checked =
     deferredNormalizedValue === normalizedValue &&
     (conflictRefsQuery.data !== null || conflictRefsQuery.error !== null);
-  const conflict =
-    checked &&
-    (conflictRefsQuery.data?.refs.some(
-      (refName) => !refName.isRemote && refName.name === normalizedValue,
-    ) ??
-      false);
+  const conflict = checked && (conflictRefsQuery.data?.totalCount ?? 0) > 0;
+  // Named for the message: the collision may be a parent or child of the
+  // typed name rather than the name itself.
+  const conflictingRef = conflict ? (conflictRefsQuery.data?.refs[0]?.name ?? null) : null;
   const state = checked ? (conflict ? "conflict" : "available") : "checking";
 
   const onStatusChangeRef = useRef(onStatusChange);
@@ -91,7 +90,13 @@ export function BranchToolbarWorktreeNameInput({
       aria-label="Branch name for the new worktree"
       data-composer-context-control
       aria-invalid={conflict || undefined}
-      title={conflict ? `Branch "${normalizedValue}" already exists.` : undefined}
+      title={
+        !conflict || conflictingRef === null
+          ? undefined
+          : conflictingRef === normalizedValue
+            ? `Branch "${conflictingRef}" already exists.`
+            : `Branch "${conflictingRef}" already exists, so "${normalizedValue}" can't be created.`
+      }
       className={cn(
         "h-7 w-44 min-w-0 shrink rounded-md bg-transparent px-2 font-mono text-xs outline-none transition-colors sm:h-6",
         "placeholder:font-sans placeholder:text-muted-foreground/50",
