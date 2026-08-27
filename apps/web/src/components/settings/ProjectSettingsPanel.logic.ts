@@ -1,5 +1,13 @@
 import type { ExecutionEnvironmentPlatformOs } from "@t3tools/contracts";
 
+export function projectGroupTitleNeedsUpdate(
+  memberTitles: ReadonlyArray<string>,
+  nextTitle: string,
+  wasEdited: boolean,
+): boolean {
+  return wasEdited && memberTitles.some((title) => title !== nextTitle);
+}
+
 /**
  * Whether the server would accept this as an absolute worktree root, mirroring
  * its platform-native `NodePath.isAbsolute`: on Windows a leading separator,
